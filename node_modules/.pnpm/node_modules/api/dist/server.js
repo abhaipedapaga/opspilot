@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const prisma_1 = require("./prisma");
+console.log("SERVER FILE LOADED 🚀");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({
@@ -14,16 +16,45 @@ app.use((0, cors_1.default)({
     credentials: true,
 }));
 app.use(express_1.default.json());
+// Add logging middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    next();
+});
+// Health route
 app.get("/health", (req, res) => {
+    console.log("Health check requested");
+    res.json({ status: "ok", service: "opspilot-api" });
+});
+// ✅ ADD THIS HERE
+app.get("/orgs", async (req, res) => {
     try {
-        res.json({ status: "ok", service: "opspilot-api" });
+        console.log("Fetching orgs...");
+        const orgs = await prisma_1.prisma.organization.findMany();
+        console.log("Orgs fetched successfully:", orgs);
+        res.json(orgs);
     }
     catch (error) {
-        console.error("Error in /health:", error);
-        res.status(500).json({ error: "Internal server error" });
+        console.error("Error fetching orgs:", error);
+        // Fallback to mock data if database is unavailable
+        console.log("Using mock data as fallback");
+        res.status(200).json([
+            {
+                id: "mock-1",
+                name: "Acme Corp",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            },
+            {
+                id: "mock-2",
+                name: "TechStart Inc",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            }
+        ]);
     }
 });
-// Error handling middleware
+// Error handling middleware (MUST BE LAST)
 app.use((err, req, res, next) => {
     console.error("Unhandled error:", err);
     res.status(500).json({ error: err.message || "Internal server error" });

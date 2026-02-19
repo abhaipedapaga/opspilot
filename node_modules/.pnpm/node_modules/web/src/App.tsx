@@ -1,23 +1,24 @@
 import { useEffect, useState } from "react";
-import { Container, Typography, Paper } from "@mui/material";
+import { Container, Typography, Paper, List, ListItem, ListItemText } from "@mui/material";
 
-type HealthResponse = {
-  status: string;
-  service: string;
+type Org = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function App() {
-  const [data, setData] = useState<HealthResponse | null>(null);
+  const [orgs, setOrgs] = useState<Org[]>([]);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    fetch("/api/health")
-
+    fetch("/api/orgs")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then((json) => setData(json))
+      .then((json) => setOrgs(json))
       .catch((e) => setError(String(e)));
   }, []);
 
@@ -29,12 +30,16 @@ export default function App() {
 
       <Paper sx={{ p: 2 }}>
         {error && <Typography color="error">API Error: {error}</Typography>}
-        {!error && !data && <Typography>Loading API...</Typography>}
-        {data && (
-          <>
-            <Typography>Status: {data.status}</Typography>
-            <Typography>Service: {data.service}</Typography>
-          </>
+        {!error && orgs.length === 0 && <Typography>Loading organizations...</Typography>}
+
+        {orgs.length > 0 && (
+          <List>
+            {orgs.map((org) => (
+              <ListItem key={org.id} divider>
+                <ListItemText primary={org.name} secondary={`Org ID: ${org.id}`} />
+              </ListItem>
+            ))}
+          </List>
         )}
       </Paper>
     </Container>
