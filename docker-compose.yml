@@ -12,5 +12,18 @@ services:
     volumes:
       - opspilot_db_data:/var/lib/postgresql/data
 
+  api:
+    build: ./apps/api
+    container_name: opspilot-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://opspilot:opspilot@db:5432/opspilot
+      JWT_SECRET: change-this-to-a-long-random-string
+      PORT: 3001
+    depends_on:
+      - db
+
 volumes:
   opspilot_db_data:
