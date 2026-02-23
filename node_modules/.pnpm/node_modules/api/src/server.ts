@@ -47,12 +47,10 @@ app.post("/auth/login", async (req, res) => {
 
 app.get("/me", requireAuth, async (req: any, res) => {
   try {
-    console.log("ME - userId:", req.userId);
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
       select: { id: true, email: true, fullName: true, createdAt: true },
     });
-    console.log("ME - user found:", user);
     if (!user) return res.status(404).json({ error: "User not found" });
     return res.json(user);
   } catch (error: any) {
@@ -61,21 +59,13 @@ app.get("/me", requireAuth, async (req: any, res) => {
   }
 });
 
-// GET /me/role?orgId=xxx
 app.get("/me/role", requireAuth, async (req: any, res) => {
   try {
     const orgId = req.query.orgId as string;
     if (!orgId) return res.status(400).json({ error: "orgId is required" });
-
     const membership = await prisma.membership.findUnique({
-      where: {
-        organizationId_userId: {
-          organizationId: orgId,
-          userId: req.userId,
-        },
-      },
+      where: { organizationId_userId: { organizationId: orgId, userId: req.userId } },
     });
-
     if (!membership) return res.json({ role: null });
     return res.json({ role: membership.role });
   } catch (error: any) {
@@ -126,6 +116,99 @@ app.delete("/orgs/:id", requireAuth, async (req, res) => {
     return res.json({ success: true });
   } catch (error: any) {
     console.error("DELETE ORG ERROR:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── Members ──────────────────────────────────────────────────
+app.get("/orgs/:orgId/members", requireAuth, async (req, res) => {
+  try {
+    const orgId = req.params.orgId as string;
+    const members = await prisma.membership.findMany({
+      where: { organizationId: orgId },
+      include: { user: { select: { id: true, email: true, fullName: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+    return res.json(members);
+  } catch (error: any) {
+    console.error("GET MEMBERS ERROR:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/orgs/:orgId/members", requireAuth, async (req, res) => {
+  try {
+    const orgId = req.params.orgId as string;
+    const { email, role } = req.body as { email?: string; role?: string };
+    if (!email) return res.status(400).json({ error: "Email is required" });
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const membership = await prisma.membership.create({
+      data: { organizationId: orgId, userId: user.id, role: (role as any) || "VIEWER" },
+      include: { user: { select: { id: true, email: true, fullName: true } } },
+    });
+    return res.json(membership);
+  } catch (error: any) {
+    if (error.code === "P2002") return res.status(409).json({ error: "User is already a member" });
+    console.error("ADD MEMBER ERROR:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.patch("/orgs/:orgId/members/:userId", requireAuth, async (req, res) => {
+  try {
+    const orgId = req.params.orgId as string;
+    const userId = req.params.userId as string;
+    const { role } = req.body as { role?: string };
+    if (!role) return res.status(400).json({ error: "Role is required" });
+    const membership = await prisma.membership.update({
+      where: { organizationId_userId: { organizationId: orgId, userId } },
+      data: { role: role as any },
+      include: { user: { select: { id: true, email: true, fullName: true } } },
+    });
+    return res.json(membership);
+  } catch (error: any) {
+    console.error("UPDATE MEMBER ERROR:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.delete("/orgs/:orgId/members/:userId", requireAuth, async (req, res) => {
+  try {
+    const orgId = req.params.orgId as string;
+    const userId = req.params.userId as string;
+    await prisma.membership.delete({
+      where: { organizationId_userId: { organizationId: orgId, userId } },
+    });
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error("DELETE MEMBER ERROR:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+// GET /stats
+app.get("/stats", requireAuth, async (_req, res) => {
+  try {
+    const [totalOrgs, totalUsers, totalMembers] = await Promise.all([
+      prisma.organization.count(),
+      prisma.user.count(),
+      prisma.membership.count(),
+    ]);
+
+    const recentOrgs = await prisma.organization.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, name: true, createdAt: true },
+    });
+
+    const membersByOrg = await prisma.membership.groupBy({
+      by: ["organizationId"],
+      _count: { userId: true },
+    });
+
+    return res.json({ totalOrgs, totalUsers, totalMembers, recentOrgs, membersByOrg });
+  } catch (error: any) {
+    console.error("STATS ERROR:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -9,6 +9,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import OrgsPage from "./pages/OrgsPage";
 import ProfilePage from "./pages/ProfilePage";
+import MembersPage from "./pages/MembersPage";
 
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -20,6 +21,7 @@ const router = createBrowserRouter([
       { path: "dashboard", element: <DashboardPage /> },
       { path: "orgs", element: <OrgsPage /> },
       { path: "profile", element: <ProfilePage /> },
+      { path: "orgs/:orgId/members", element: <MembersPage /> },
     ],
   },
 ]);

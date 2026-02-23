@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Paper, Typography, List, ListItem, ListItemText,
   IconButton, Button, TextField, Dialog, DialogTitle,
@@ -7,6 +8,7 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
+import GroupIcon from "@mui/icons-material/Group";
 import {
   useGetOrgsQuery,
   useCreateOrgMutation,
@@ -16,6 +18,7 @@ import {
 } from "../api/apiSlice";
 
 export default function OrgsPage() {
+  const navigate = useNavigate();
   const { data: orgs, isLoading, error } = useGetOrgsQuery();
   const { data: me } = useGetMeQuery();
   const [createOrg] = useCreateOrgMutation();
@@ -97,6 +100,9 @@ export default function OrgsPage() {
                       color={roleColor(orgRoles[org.id]) as any}
                     />
                   )}
+                  <IconButton onClick={() => navigate(`/orgs/${org.id}/members`)}>
+                    <GroupIcon />
+                  </IconButton>
                   <IconButton onClick={() => { setEditOrg(org); setName(org.name); }}>
                     <EditIcon />
                   </IconButton>
